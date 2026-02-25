@@ -1,0 +1,11 @@
+.cpcache/
+test-report-*.xml
+test-report-*.txt
+plan-*.md
+.answers
+.plans
+*.local
+*.local.*
+.m2-*
+.m2
+.clj-kondo-cache/
