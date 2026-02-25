@@ -1,8 +1,21 @@
 (ns configure.keys
   (:require [clojure.string :as str]))
 
-(def ^:private secret-substrings
-  ["password" "secret" "token" "apikey" "api_key" "key"])
+(def ^:private default-secret-tokens
+  #{"password" "secret" "token" "apikey" "api_key"})
+
+(defn- key->string
+  [k]
+  (cond
+    (keyword? k) (name k)
+    (symbol? k) (name k)
+    :else (str k)))
+
+(defn- default-secret-key?
+  [k]
+  (let [segments (->> (str/split (str/lower-case (key->string k)) #"\.")
+                      (remove str/blank?))]
+    (some default-secret-tokens segments)))
 
 (defn normalize-key
   "Normalize a key to a lower-case string."
@@ -44,11 +57,14 @@
 
 (defn mask-secrets
   "Mask values for keys that look like secrets."
-  [config]
-  (reduce-kv
-   (fn [acc k v]
-     (if (some #(str/includes? k %) secret-substrings)
-       (assoc acc k "***")
-       (assoc acc k v)))
-   {}
-   config))
+  ([config]
+   (mask-secrets config {}))
+  ([config {:keys [secret-key?]}]
+   (let [secret-key? (or secret-key? default-secret-key?)]
+     (reduce-kv
+      (fn [acc k v]
+        (if (secret-key? k)
+          (assoc acc k "***")
+          (assoc acc k v)))
+      {}
+      config))))

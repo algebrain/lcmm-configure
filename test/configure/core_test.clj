@@ -59,3 +59,13 @@
 (deftest dump-config-test
   (is (= {"db.password" "***"}
          (core/dump-config {"db.password" "secret"}))))
+
+(deftest select-config-file-env-only-test
+  (let [dir (tmp-dir)
+        _ (write-toml! dir "users_config.toml" "a = 1")
+        {:keys [path source]} (core/select-config-file {:module-name "users"
+                                                        :allow-relative? true
+                                                        :cwd (.getPath dir)
+                                                        :env-only? true})]
+    (is (nil? path))
+    (is (= :none source))))

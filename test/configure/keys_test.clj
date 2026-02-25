@@ -13,6 +13,11 @@
   (is (= {"db.url" "x" "http.port" 8080}
          (keys/flatten-map {:db {:url "x"} :http {:port 8080}}))))
 
-(deftest mask-secrets-test
-  (is (= {"db.password" "***" "db.user" "u"}
-         (keys/mask-secrets {"db.password" "p" "db.user" "u"}))))
+(deftest mask-secrets-default-test
+  (is (= {"db.password" "***" "public.key" "pub"}
+         (keys/mask-secrets {"db.password" "p" "public.key" "pub"}))))
+
+(deftest mask-secrets-custom-test
+  (is (= {"db.password" "p" "public.key" "***"}
+         (keys/mask-secrets {"db.password" "p" "public.key" "pub"}
+                            {:secret-key? (fn [k] (= "public.key" (str k)))}))))

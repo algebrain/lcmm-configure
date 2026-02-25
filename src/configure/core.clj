@@ -18,7 +18,7 @@
   "Selects a config file according to rules.
    Returns {:path <path or nil> :source <keyword>}.
    Sources: :explicit, :module-default, :global-default, :none."
-  [{:keys [config module-name allow-relative? cwd]}]
+  [{:keys [config module-name allow-relative? cwd env-only?]}]
   (let [allow-relative? (if (nil? allow-relative?) true allow-relative?)
         cwd (or cwd ".")]
     (cond
@@ -30,7 +30,7 @@
           {:path config :source :explicit}
           (throw (ex-info "Config file not found." {:config config}))))
 
-      (and allow-relative? module-name)
+      (and (not env-only?) allow-relative? module-name)
       (let [module-file (str (java.io.File. cwd (str module-name "_config.toml")))
             global-file (str (java.io.File. cwd "config.toml"))]
         (cond
@@ -106,18 +106,21 @@
    - :env (map, default System/getenv)
    - :required (set of keys)
    - :types (map of key -> type)
+   - :allowed-keys (set/seq of dot-keys allowed from env)
+   - :env-only? (when true, skip default file lookup)
    - :logger (fn [level data])
 
    Returns {:config <map> :meta <map>}"
-  [{:keys [module-name config allow-relative? cwd env required types logger]}]
+  [{:keys [module-name config allow-relative? cwd env required types logger allowed-keys env-only?]}]
   (when-not (seq module-name)
     (throw (ex-info "module-name is required" {})))
   (let [{:keys [path source]} (select-config-file {:config config
                                                    :module-name module-name
                                                    :allow-relative? allow-relative?
-                                                   :cwd cwd})
+                                                   :cwd cwd
+                                                   :env-only? env-only?})
         file-config (if path (toml/read-toml-file path) {})
-        env-map (env/env->config module-name (or env (System/getenv)))
+        env-map (env/env->config module-name (or env (System/getenv)) allowed-keys)
         merged (merge file-config env-map)
         typed (apply-types merged types)
         _ (validate-required typed required)
@@ -134,5 +137,7 @@
 
 (defn dump-config
   "Returns config with secrets masked for safe output."
-  [config]
-  (keys/mask-secrets config))
+  ([config]
+   (keys/mask-secrets config))
+  ([config opts]
+   (keys/mask-secrets config opts)))
